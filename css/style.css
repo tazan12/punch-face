@@ -277,3 +277,11 @@ button.install.ghost { background: transparent; border-color: var(--line); color
 .share-url { font-family: monospace; font-size: 14px; color: var(--gold); margin: 10px 0 6px; word-break: break-all; }
 .panel.share .small { margin-bottom: 14px; }
 @media (max-height: 520px) { .panel.share .qr { width: 150px; height: 150px; } .install-row { margin-bottom: 6px; } button.install { font-size: 12px; padding: 5px 10px; } }
+
+/* ───── 공유 버튼 ───── */
+.share-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; width: 100%; max-width: 360px; }
+button.share { padding: 10px 8px; font-size: 14px; }
+button.share.sms { background: #15803d; border-color: #4ade80; } button.share.sms:hover { background: #16a34a; }
+button.share.kakao { background: #fee500; border-color: #fee500; color: #191919; } button.share.kakao:hover { background: #ffd400; }
+button.share.ghost { background: transparent; border-color: var(--line); color: var(--soft); }
+#share-hint, #on-invite-hint { margin: 4px 0 10px; }

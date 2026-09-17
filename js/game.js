@@ -196,8 +196,11 @@ class Game {
     $('btn-online-back').onclick=()=>{ this.net.close(); $('on-code').classList.add('hidden'); this.screen='title'; this.show('overlay-title'); };
     $('btn-host').onclick=()=>{ this.setOnlineStatus('방을 만드는 중…'); this.net.host((err,code)=>{ if(err){ this.setOnlineStatus('방 만들기 실패: '+(err.message||err.type||err),true); return; } $('on-code-text').textContent=code; $('on-code').classList.remove('hidden'); $('on-invite').classList.remove('hidden'); this.setOnlineStatus('코드를 알려주거나 초대 링크를 보내세요. 상대가 참가하면 자동으로 시작됩니다.'); }); };
     const inviteUrl=()=> location.origin+location.pathname+'?join='+$('on-code-text').textContent;
-    $('btn-invite').onclick=()=>{ const u=inviteUrl(); if(navigator.share) navigator.share({title:'PUNCH FACE 대전 초대',text:'권투 한 판 붙자! 링크를 누르면 바로 참가돼',url:u}).catch(()=>{}); else { try{ navigator.clipboard.writeText(u); this.setOnlineStatus('초대 링크를 복사했습니다: '+u); }catch(e){} } };
-    $('btn-invite-copy').onclick=()=>{ try{ navigator.clipboard.writeText(inviteUrl()); this.setOnlineStatus('초대 링크를 복사했습니다: '+inviteUrl()); }catch(e){} };
+    const inviteMsg=()=>'🥊 PUNCH FACE 권투 한 판 붙자! 링크 누르면 바로 참가돼 → '+inviteUrl();
+    $('btn-invite').onclick=()=>PF.shareNative('PUNCH FACE 대전 초대',inviteMsg(),inviteUrl());
+    $('btn-invite-sms').onclick=()=>PF.sms(inviteMsg());
+    $('btn-invite-kakao').onclick=()=>PF.kakao(inviteMsg(),$('on-invite-hint'));
+    $('btn-invite-copy').onclick=()=>{ PF.copy(inviteMsg()); this.setOnlineStatus('초대 문구와 링크를 복사했습니다. 카톡·문자에 붙여넣기 하세요.'); };
     $('btn-copy').onclick=()=>{ try{ navigator.clipboard.writeText($('on-code-text').textContent); this.setOnlineStatus('코드를 복사했습니다'); }catch(e){} };
     $('btn-join').onclick=()=>{ const code=$('on-input').value.trim().toUpperCase(); if(code.length<4){ this.setOnlineStatus('코드 4자리를 입력하세요',true); return; } this.setOnlineStatus('연결 중… ('+code+')'); this.joinRoom(code); };
     $('on-input').onkeydown=e=>{ if(e.key==='Enter') $('btn-join').click(); e.stopPropagation(); };

@@ -104,7 +104,14 @@
       <img src="assets/qr.png" alt="QR" class="qr">
       <div class="share-url" id="share-url">https://tazan12.github.io/punch-face/</div>
       <p class="dim small">카메라로 QR을 찍거나 링크를 보내세요. 열고 나서 <b>홈 화면에 추가</b>하면 앱처럼 실행됩니다.</p>
-      <div class="btns"><button id="btn-share-copy" class="primary">링크 복사</button><button id="btn-share-native">공유하기</button><button id="btn-share-close">닫기</button></div>
+      <div class="share-btns">
+        <button id="btn-share-sms" class="share sms">📱 문자로 보내기</button>
+        <button id="btn-share-kakao" class="share kakao">💬 카카오톡</button>
+        <button id="btn-share-native" class="share">📤 다른 앱</button>
+        <button id="btn-share-copy" class="share ghost">링크 복사</button>
+      </div>
+      <p id="share-hint" class="dim small">카카오톡: 링크가 복사된 채 카카오톡이 열립니다 → 대화창을 길게 눌러 <b>붙여넣기</b></p>
+      <div class="btns"><button id="btn-share-close">닫기</button></div>
     </div>
   </div>
 
@@ -117,7 +124,13 @@
         <div class="on-box"><h3>방 만들기</h3><p class="dim">코드를 만들어 친구에게 알려주세요</p>
           <button id="btn-host" class="primary big">방 만들기</button>
           <div id="on-code" class="on-code hidden"><span id="on-code-text">----</span><button id="btn-copy">복사</button></div>
-          <div id="on-invite" class="btns hidden"><button id="btn-invite" class="primary">📨 초대 링크 보내기</button><button id="btn-invite-copy">링크 복사</button></div></div>
+          <div id="on-invite" class="share-btns hidden">
+            <button id="btn-invite-sms" class="share sms">📱 문자로 보내기</button>
+            <button id="btn-invite-kakao" class="share kakao">💬 카카오톡</button>
+            <button id="btn-invite" class="share">📤 다른 앱</button>
+            <button id="btn-invite-copy" class="share ghost">링크 복사</button>
+          </div>
+          <p id="on-invite-hint" class="dim small hidden">카카오톡: 링크가 복사된 채 카카오톡이 열립니다 → 대화창을 길게 눌러 <b>붙여넣기</b></p></div>
         <div class="on-box"><h3>참가하기</h3><p class="dim">친구에게 받은 코드 4자리</p>
           <div class="on-join"><input id="on-input" maxlength="4" placeholder="ABCD" autocapitalize="characters" autocomplete="off"><button id="btn-join" class="primary big">참가</button></div>
           <p class="dim small">초대 링크를 받았다면 링크만 눌러도 자동으로 참가됩니다</p></div>
@@ -187,6 +200,18 @@
 <script src="js/draw.js"></script>
 <script src="js/game.js"></script>
 <script>
+// 공유 도우미: 문자(sms:) · 카카오톡(복사 후 앱 열기) · 시스템 공유 시트
+window.PF={
+  ios:/iphone|ipad|ipod/i.test(navigator.userAgent), android:/android/i.test(navigator.userAgent),
+  copy(t){ try{ navigator.clipboard.writeText(t); }catch(e){ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(_){} ta.remove(); } },
+  sms(text){ const body=encodeURIComponent(text); location.href = PF.ios ? 'sms:&body='+body : 'sms:?body='+body; },
+  kakao(text,hintEl){
+    PF.copy(text); if(hintEl){ hintEl.classList.remove('hidden'); hintEl.innerHTML='✅ 링크를 복사했습니다. 카카오톡이 열리면 대화창을 길게 눌러 <b>붙여넣기</b> 하세요.'; }
+    if(PF.android||PF.ios){ setTimeout(()=>{ location.href = PF.android ? 'intent://launch#Intent;scheme=kakaotalk;package=com.kakao.talk;end' : 'kakaotalk://launch'; },400); }
+    else if(navigator.share){ navigator.share({title:'PUNCH FACE',text}).catch(()=>{}); }
+  },
+  shareNative(title,text,url){ if(navigator.share) navigator.share({title,text,url}).catch(()=>{}); else { PF.copy(text); alert('링크를 복사했습니다. 원하는 곳에 붙여넣기 하세요.'); } }
+};
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 // ── 웹앱 설치 버튼 ──
 (function(){
@@ -200,10 +225,13 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigat
   window.addEventListener('appinstalled',()=>{ btn.classList.add('hidden'); });
   // 공유
   const url='https://tazan12.github.io/punch-face/';
+  const msg='🥊 PUNCH FACE — 표정이 살아있는 권투 게임! 같이 하자 '+url;
   $('btn-share').onclick=()=>{ $('overlay-share').classList.remove('hidden'); };
   $('btn-share-close').onclick=()=>{ $('overlay-share').classList.add('hidden'); };
-  $('btn-share-copy').onclick=()=>{ try{ navigator.clipboard.writeText(url); $('btn-share-copy').textContent='복사됨!'; setTimeout(()=>$('btn-share-copy').textContent='링크 복사',1500); }catch(e){} };
-  $('btn-share-native').onclick=()=>{ if(navigator.share) navigator.share({title:'PUNCH FACE',text:'표정이 살아있는 권투 게임! 같이 하자',url}).catch(()=>{}); else $('btn-share-copy').click(); };
+  $('btn-share-copy').onclick=()=>{ PF.copy(url); $('btn-share-copy').textContent='복사됨!'; setTimeout(()=>$('btn-share-copy').textContent='링크 복사',1500); };
+  $('btn-share-native').onclick=()=>PF.shareNative('PUNCH FACE',msg,url);
+  $('btn-share-sms').onclick=()=>PF.sms(msg);
+  $('btn-share-kakao').onclick=()=>PF.kakao(msg,$('share-hint'));
 })();
 </script>
 </body>
