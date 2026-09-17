@@ -194,9 +194,12 @@ class Game {
       this.show('overlay-online'); };
     $('btn-local2p').onclick=()=>{ this.net.close(); this.settings.mode='2p'; this.screen='select'; this.picker=0; this.buildSelect(); this.show('overlay-select'); };
     $('btn-online-back').onclick=()=>{ this.net.close(); $('on-code').classList.add('hidden'); this.screen='title'; this.show('overlay-title'); };
-    $('btn-host').onclick=()=>{ this.setOnlineStatus('방을 만드는 중…'); this.net.host((err,code)=>{ if(err){ this.setOnlineStatus('방 만들기 실패: '+(err.message||err.type||err),true); return; } $('on-code-text').textContent=code; $('on-code').classList.remove('hidden'); this.setOnlineStatus('코드를 친구에게 알려주세요. 참가하면 자동으로 시작됩니다.'); }); };
+    $('btn-host').onclick=()=>{ this.setOnlineStatus('방을 만드는 중…'); this.net.host((err,code)=>{ if(err){ this.setOnlineStatus('방 만들기 실패: '+(err.message||err.type||err),true); return; } $('on-code-text').textContent=code; $('on-code').classList.remove('hidden'); $('on-invite').classList.remove('hidden'); this.setOnlineStatus('코드를 알려주거나 초대 링크를 보내세요. 상대가 참가하면 자동으로 시작됩니다.'); }); };
+    const inviteUrl=()=> location.origin+location.pathname+'?join='+$('on-code-text').textContent;
+    $('btn-invite').onclick=()=>{ const u=inviteUrl(); if(navigator.share) navigator.share({title:'PUNCH FACE 대전 초대',text:'권투 한 판 붙자! 링크를 누르면 바로 참가돼',url:u}).catch(()=>{}); else { try{ navigator.clipboard.writeText(u); this.setOnlineStatus('초대 링크를 복사했습니다: '+u); }catch(e){} } };
+    $('btn-invite-copy').onclick=()=>{ try{ navigator.clipboard.writeText(inviteUrl()); this.setOnlineStatus('초대 링크를 복사했습니다: '+inviteUrl()); }catch(e){} };
     $('btn-copy').onclick=()=>{ try{ navigator.clipboard.writeText($('on-code-text').textContent); this.setOnlineStatus('코드를 복사했습니다'); }catch(e){} };
-    $('btn-join').onclick=()=>{ const code=$('on-input').value.trim().toUpperCase(); if(code.length<4){ this.setOnlineStatus('코드 4자리를 입력하세요',true); return; } this.setOnlineStatus('연결 중… ('+code+')'); this.net.join(code,err=>{ if(err) this.setOnlineStatus('연결 실패: 코드를 확인하세요 ('+(err.message||err.type||err)+')',true); }); };
+    $('btn-join').onclick=()=>{ const code=$('on-input').value.trim().toUpperCase(); if(code.length<4){ this.setOnlineStatus('코드 4자리를 입력하세요',true); return; } this.setOnlineStatus('연결 중… ('+code+')'); this.joinRoom(code); };
     $('on-input').onkeydown=e=>{ if(e.key==='Enter') $('btn-join').click(); e.stopPropagation(); };
     $('btn-demo').onclick=()=>{ this.settings.mode='demo'; this.screen='select'; this.picker=0; this.buildSelect(); this.show('overlay-select'); };
     $('btn-cpu').onclick=()=>{ this.settings.mode='cpu'; this.screen='select'; this.picker=0; this.buildSelect(); this.show('overlay-select'); };
@@ -240,6 +243,11 @@ class Game {
     const [x,y]=this.fighters; x.x=RING_L+260; y.x=RING_R-260; x.facing=1; y.facing=-1;
   }
   // ── 온라인 ──
+  joinRoom(code){
+    this.screen='online'; this.show('overlay-online'); document.getElementById('on-input').value=code;
+    this.setOnlineStatus('연결 중… ('+code+')');
+    this.net.join(code,err=>{ if(err) this.setOnlineStatus('연결 실패: '+(err.message||err.type||err),true); else this.setOnlineStatus('연결되었습니다!'); });
+  }
   setOnlineStatus(msg,err){ const el=document.getElementById('on-status'); el.textContent=msg||''; el.classList.toggle('err',!!err); }
   onNetOpen(){
     this.settings.mode='online'; this.picker = this.net.role==='host'?0:1; this.meIdx=this.picker; this.localReady=false; this.remoteReady=false;
@@ -770,6 +778,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(q.has('pro')) g.setEasy(false);
   if(q.has('play')){ g.settings.mode='cpu'; g.selection=[+(q.get('p1')||0), +(q.get('p2')||2)]; g.settings.voice=false; g.startMatch(); g.show(null); g.phase='intro'; g.phaseT=0;
     const skip=+(q.get('skip')||0); for(let i=0;i<skip && g.screen==='fight';i++) g.simFrame(); }
+  if(q.has('join')){ g.sfx.init(); setTimeout(()=>g.joinRoom(q.get('join').toUpperCase()),300); history.replaceState(null,'',location.pathname); }
+  if(q.has('host')){ g.screen='online'; g.show('overlay-online'); g.net.host((err,code)=>{ const $=id=>document.getElementById(id); if(err){ g.setOnlineStatus('호스트 실패: '+(err.type||err.message),true); return; } $('on-code-text').textContent=code; $('on-code').classList.remove('hidden'); g.setOnlineStatus('대기 중 '+code); }, q.get('host').toUpperCase()); }
   if(q.has('career')){ if(!g.career.state) g.career.start(q.get('career')||'kang'); g.openCareer('테스트'); }
   if(q.has('demo')){
     g.settings.mode='demo'; g.selection=[+(q.get('p1')||0), +(q.get('p2')||2)]; g.settings.voice=false;

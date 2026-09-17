@@ -1,6 +1,11 @@
 'use strict';
 // 온라인 대전 (WebRTC / PeerJS). 호스트가 경기를 계산하고 게스트는 입력을 보내고 상태를 받아 그린다.
 const NET_PREFIX='punchface-v1-';
+const PEER_OPTS={ debug:0, config:{ iceServers:[
+  {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},
+  {urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'},
+  {urls:'turns:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject'} ] } };
 class RemoteInput {
   constructor(){ this.down=new Set(); this.pressed=new Set(); this.anyPressed=false; }
   build(idx){
@@ -17,20 +22,26 @@ class Net {
   get connected(){ return !!(this.conn && this.conn.open); }
   available(){ return typeof Peer!=='undefined'; }
   genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<4;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
-  host(cb){
+  host(cb,fixedCode){
     if(!this.available()) return cb(new Error('no-peerjs'));
-    this.close(); this.role='host'; this.code=this.genCode();
-    this.peer=new Peer(NET_PREFIX+this.code,{debug:0});
+    this.close(); this.role='host'; this.code=fixedCode||this.genCode();
+    this.peer=new Peer(NET_PREFIX+this.code,PEER_OPTS);
     this.peer.on('open',()=>cb(null,this.code));
-    this.peer.on('error',e=>{ if(e.type==='unavailable-id') this.host(cb); else cb(e); });
-    this.peer.on('connection',c=>{ if(this.conn){ c.close(); return; } this.conn=c; this.bind(c); });
+    this.peer.on('error',e=>{ if(e.type==='unavailable-id' && !fixedCode) this.host(cb); else cb(e); });
+    this.peer.on('connection',c=>{ if(this.conn && this.conn.open){ c.close(); return; } this.conn=c; this.bind(c); this.game.setOnlineStatus('상대가 접속했습니다. 연결을 맺는 중…'); });
+    this.peer.on('disconnected',()=>{ try{ this.peer.reconnect(); }catch(e){} });
   }
   join(code,cb){
     if(!this.available()) return cb(new Error('no-peerjs'));
     this.close(); this.role='guest'; this.code=code.toUpperCase().trim();
-    this.peer=new Peer({debug:0});
-    this.peer.on('open',()=>{ const c=this.peer.connect(NET_PREFIX+this.code,{serialization:'json',reliable:true}); this.conn=c; this.bind(c); c.on('open',()=>cb(null)); setTimeout(()=>{ if(!c.open) cb(new Error('timeout')); },8000); });
-    this.peer.on('error',e=>cb(e));
+    this.peer=new Peer(PEER_OPTS); let done=false; const fin=e=>{ if(!done){ done=true; cb(e||null); } };
+    this.peer.on('open',()=>{
+      this.game.setOnlineStatus('방을 찾는 중… ('+this.code+')');
+      const c=this.peer.connect(NET_PREFIX+this.code,{serialization:'json',reliable:true}); this.conn=c; this.bind(c);
+      c.on('open',()=>fin(null));
+      setTimeout(()=>{ if(!c.open) fin(new Error('timeout — 상대 기기와 직접 연결이 되지 않습니다. 양쪽 모두 Wi-Fi로 바꾸거나 잠시 후 다시 시도하세요')); },15000);
+    });
+    this.peer.on('error',e=>{ fin(new Error(e.type==='peer-unavailable'?'그 코드의 방이 없습니다. 코드를 다시 확인하세요':(e.type||e.message))); });
   }
   bind(c){
     c.on('data',d=>this.onData(d));
