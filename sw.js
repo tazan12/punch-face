@@ -1,5 +1,5 @@
 // PUNCH FACE 서비스 워커: 한 번 열면 오프라인에서도 실행. 새 버전은 백그라운드로 갱신.
-const VERSION = 'pf-v10';
+const VERSION = 'pf-v11';
 const CORE = ['./','./index.html','./css/style.css','./manifest.webmanifest',
   './js/data.js','./js/sprites.js','./js/audio.js','./js/fighter.js','./js/combat.js','./js/ai.js','./js/career.js','./js/net.js','./js/draw.js','./js/game.js',
   './assets/crowd.jpg','./assets/qr.png','./assets/icons/icon-192.png'];

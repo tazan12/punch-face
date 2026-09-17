@@ -65,6 +65,7 @@ class Game {
     this.cam={x:W/2,s:1}; this.flashT=0;
     this.career=new Career(this);
     this.net=new Net(this); this.netSfx=[]; this.meIdx=0;
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ this.net.ensureHostAlive(); this.requestWakeLock(); } });
     // 호스트일 때 효과음 호출을 기록해 게스트에게 전달
     for(const name of ['punch','bodyHit','block','whiff','slip','bell','count','down','win','getup','crowd','tone','noise']){
       const orig=this.sfx[name].bind(this.sfx); this.sfx[name]=(...args)=>{ if(this.net.role==='host' && this.screen==='fight') this.netSfx.push([name,args]); return orig(...args); };
@@ -194,7 +195,7 @@ class Game {
       this.show('overlay-online'); };
     $('btn-local2p').onclick=()=>{ this.net.close(); this.settings.mode='2p'; this.screen='select'; this.picker=0; this.buildSelect(); this.show('overlay-select'); };
     $('btn-online-back').onclick=()=>{ this.net.close(); $('on-code').classList.add('hidden'); this.screen='title'; this.show('overlay-title'); };
-    $('btn-host').onclick=()=>{ this.setOnlineStatus('방을 만드는 중…'); this.net.host((err,code)=>{ if(err){ this.setOnlineStatus('방 만들기 실패: '+(err.message||err.type||err),true); return; } $('on-code-text').textContent=code; $('on-code').classList.remove('hidden'); $('on-invite').classList.remove('hidden'); this.setOnlineStatus('코드를 알려주거나 초대 링크를 보내세요. 상대가 참가하면 자동으로 시작됩니다.'); }); };
+    $('btn-host').onclick=()=>{ this.setOnlineStatus('방을 만드는 중…'); this.net.host((err,code)=>{ if(err){ this.setOnlineStatus('방 만들기 실패: '+(err.message||err.type||err),true); return; } $('on-code-text').textContent=code; $('on-code').classList.remove('hidden'); $('on-invite').classList.remove('hidden'); this.requestWakeLock(); this.setOnlineStatus('초대를 보낸 뒤 이 화면으로 돌아와 기다리세요. 상대가 참가하면 자동으로 시작됩니다.'); }); };
     const inviteUrl=()=> location.origin+location.pathname+'?join='+$('on-code-text').textContent;
     const inviteMsg=()=>'🥊 PUNCH FACE 권투 한 판 붙자! 링크 누르면 바로 참가돼 → '+inviteUrl();
     $('btn-invite').onclick=()=>PF.shareNative('PUNCH FACE 대전 초대',inviteMsg(),inviteUrl());
@@ -244,6 +245,10 @@ class Game {
     for(const f of this.fighters) this.applySpriteReach(f);
     this.timer=999; this.phase='fight'; this.phaseT=0; this.count=0; this.countT=0;
     const [x,y]=this.fighters; x.x=RING_L+260; y.x=RING_R-260; x.facing=1; y.facing=-1;
+  }
+  // 화면 꺼짐 방지 (온라인 대기·경기 중)
+  async requestWakeLock(){
+    try{ if('wakeLock' in navigator && (this.screen==='fight'||this.screen==='online'||this.settings.mode==='online')){ if(this.wakeLock) return; this.wakeLock=await navigator.wakeLock.request('screen'); this.wakeLock.addEventListener('release',()=>{ this.wakeLock=null; }); } }catch(e){}
   }
   // ── 온라인 ──
   joinRoom(code){
@@ -346,7 +351,7 @@ class Game {
     this.round=1; this.scores=[[],[]]; this.result=null; this.popups=[]; this.particles=[]; this.careerRecorded=false;
     for(const f of this.fighters) this.applySpriteReach(f);
     this.screen='fight'; this.paused=false;
-    this.requestFullscreen();
+    this.requestFullscreen(); this.requestWakeLock();
     this.beginRound();
     // VS 인트로
     const [a,b]=this.fighters, $=id=>document.getElementById(id);
