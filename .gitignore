@@ -1,0 +1,6 @@
+dist/
+assets/sheets/
+__pycache__/
+*.pyc
+Thumbs.db
+.DS_Store

@@ -1,0 +1,86 @@
+'use strict';
+// 온라인 대전 (WebRTC / PeerJS). 호스트가 경기를 계산하고 게스트는 입력을 보내고 상태를 받아 그린다.
+const NET_PREFIX='punchface-v1-';
+class RemoteInput {
+  constructor(){ this.down=new Set(); this.pressed=new Set(); this.anyPressed=false; }
+  build(idx){
+    const m=KEYMAPS[0], inp=emptyInput();
+    inp.left=this.down.has(m.left); inp.right=this.down.has(m.right); inp.duck=this.down.has(m.duck); inp.guard=this.down.has(m.guard);
+    for(const k of ['slip','skill',...PUNCH_IDS]) if(this.pressed.has(m[k])) inp.press[k]=true;
+    inp.anyPress=[...PUNCH_IDS,'slip','guard'].some(k=>this.pressed.has(m[k]));
+    return inp;
+  }
+  endFrame(){ this.pressed.clear(); this.anyPressed=false; }
+}
+class Net {
+  constructor(game){ this.game=game; this.peer=null; this.conn=null; this.role=null; this.code=null; this.remote=new RemoteInput(); this.lastState=null; this.stateSeq=0; this.remoteEasy=true; this.remotePick=null; this.ready=false; }
+  get connected(){ return !!(this.conn && this.conn.open); }
+  available(){ return typeof Peer!=='undefined'; }
+  genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<4;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
+  host(cb){
+    if(!this.available()) return cb(new Error('no-peerjs'));
+    this.close(); this.role='host'; this.code=this.genCode();
+    this.peer=new Peer(NET_PREFIX+this.code,{debug:0});
+    this.peer.on('open',()=>cb(null,this.code));
+    this.peer.on('error',e=>{ if(e.type==='unavailable-id') this.host(cb); else cb(e); });
+    this.peer.on('connection',c=>{ if(this.conn){ c.close(); return; } this.conn=c; this.bind(c); });
+  }
+  join(code,cb){
+    if(!this.available()) return cb(new Error('no-peerjs'));
+    this.close(); this.role='guest'; this.code=code.toUpperCase().trim();
+    this.peer=new Peer({debug:0});
+    this.peer.on('open',()=>{ const c=this.peer.connect(NET_PREFIX+this.code,{serialization:'json',reliable:true}); this.conn=c; this.bind(c); c.on('open',()=>cb(null)); setTimeout(()=>{ if(!c.open) cb(new Error('timeout')); },8000); });
+    this.peer.on('error',e=>cb(e));
+  }
+  bind(c){
+    c.on('data',d=>this.onData(d));
+    c.on('open',()=>this.game.onNetOpen());
+    c.on('close',()=>this.game.onNetClose('상대와의 연결이 끊어졌습니다'));
+    c.on('error',()=>this.game.onNetClose('연결 오류'));
+  }
+  send(d){ if(this.connected){ try{ this.conn.send(d); }catch(e){} } }
+  onData(d){
+    if(!d||!d.t) return;
+    switch(d.t){
+      case 'hello': this.remoteEasy=!!d.easy; break;
+      case 'pick': this.remotePick=d.idx; this.remoteEasy=!!d.easy; this.game.onNetPick(d); break;
+      case 'start': this.game.onNetStart(d); break;
+      case 'in': this.remote.down=new Set(d.d); for(const k of d.p) this.remote.pressed.add(k); break;
+      case 'st': if(d.seq>this.stateSeq){ this.stateSeq=d.seq; this.lastState=d; } break;
+      case 'exit': this.game.onNetClose('상대가 경기를 나갔습니다'); break;
+    }
+  }
+  sendInput(input){ this.send({t:'in',d:[...input.down],p:[...input.pressed]}); }
+  // ── 호스트: 상태 스냅샷 ──
+  snapshot(){
+    const g=this.game, F=f=>({x:f.x,facing:f.facing,state:f.state,stateT:f.stateT,hitstun:f.hitstun,hitstunMax:f.hitstunMax,hitTarget:f.hitTarget,hitArc:f.hitArc,dazed:f.dazed,guard:f.guard,duck:f.duck,guardLow:f.guardLow,stam:f.stam,hp:f.hp,body:f.body,sp:f.sp,knockdowns:f.knockdowns,totalKD:f.totalKD,squash:f.squash,hitFlash:f.hitFlash,hitScale:f.hitScale,flash:f.flash,evadeT:f.evadeT,walkT:f.walkT,skillArmor:f.skillArmor,t:f.t,hpGhost:f.hpGhost,getupProgress:f.getupProgress,combo:f.combo,
+      punch:f.punch?{id:f.punch.id,phase:f.punch.phase,t:f.punch.t,windup:f.punch.windup,recover:f.punch.recover,active:f.punch.active,target:f.punch.target,result:f.punch.result}:null,
+      skill:f.skill?{type:f.skill.type}:null, stats:f.stats});
+    const r=g.result;
+    const st={t:'st',seq:++this.stateSeq,f:g.fighters.map(F),phase:g.phase,phaseT:g.phaseT,timer:g.timer,round:g.round,count:g.count,countT:g.countT,
+      downed:g.downed?g.fighters.indexOf(g.downed):-1,ref:g.ref,shake:g.shake,flashT:g.flashT,speedT:g.speedT,speedColor:g.speedColor,cinemaT:g.cinemaT,cinemaMax:g.cinemaMax,
+      hitStop:g.hitStop,timeScale:g.timeScale,caption:g.caption,paused:g.paused,scores:g.scores,lastRoundScore:g.lastRoundScore,
+      popups:g.popups.map(p=>[p.text,p.x,p.y,p.t,p.life,p.color,p.size,p.rot,p.burst]),
+      particles:g.particles.map(q=>[q.type,q.x,q.y,q.t,q.life,q.big?1:0]),
+      result:r?{w:r.winner?g.fighters.indexOf(r.winner):-1,method:r.method,detail:r.detail,round:r.round}:null,
+      sfx:g.netSfx};
+    g.netSfx=[];
+    return st;
+  }
+  // ── 게스트: 스냅샷 적용 ──
+  apply(st){
+    const g=this.game; if(!g.fighters) return;
+    st.f.forEach((d,i)=>{ const f=g.fighters[i]; const punch=d.punch, skill=d.skill, stats=d.stats;
+      Object.assign(f,d); f.punch = punch ? Object.assign(punch,{def:PUNCHES[punch.id],hit:true}) : null; f.skill = skill?{type:skill.type,t:0,dur:1}:null; f.stats=stats||f.stats; });
+    for(const k of ['phase','phaseT','timer','round','count','countT','shake','flashT','speedT','speedColor','cinemaT','cinemaMax','hitStop','timeScale','caption','scores','lastRoundScore']) g[k]=st[k];
+    g.downed = st.downed>=0 ? g.fighters[st.downed] : null;
+    if(st.ref){ g.ref=st.ref; g.refX=st.ref.x; }
+    g.popups=st.popups.map(p=>({text:p[0],x:p[1],y:p[2],t:p[3],life:p[4],color:p[5],size:p[6],rot:p[7],burst:p[8]}));
+    g.particles=st.particles.map(q=>({type:q[0],x:q[1],y:q[2],t:q[3],life:q[4],big:!!q[5],vx:0,vy:0}));
+    g.result = st.result ? {winner: st.result.w>=0?g.fighters[st.result.w]:null, method:st.result.method, detail:st.result.detail, round:st.result.round} : null;
+    if(st.paused!==g.paused) g.setPaused(st.paused);
+    for(const [name,args] of (st.sfx||[])){ if(name==='speak') g.speak(args[0]); else if(g.sfx[name]) g.sfx[name](...args); }
+    g.sfx.tick();
+  }
+  close(){ try{ if(this.conn) this.conn.close(); }catch(e){} try{ if(this.peer) this.peer.destroy(); }catch(e){} this.conn=null; this.peer=null; this.role=null; this.lastState=null; this.stateSeq=0; this.remotePick=null; this.ready=false; this.remote=new RemoteInput(); }
+}

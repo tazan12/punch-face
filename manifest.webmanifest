@@ -1,0 +1,17 @@
+{
+  "name": "PUNCH FACE — 링 위의 표정들",
+  "short_name": "PUNCH FACE",
+  "description": "표정이 살아있는 2D 권투 게임. 챔피언 로드, 온라인 대전, 터치 조작.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07080f",
+  "theme_color": "#c8102e",
+  "lang": "ko",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

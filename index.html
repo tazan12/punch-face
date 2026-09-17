@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PUNCH FACE — 링 위의 표정들</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#c8102e">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" width="960" height="540"></canvas>
+
+  <!-- 화면 버튼 (링 위) -->
+  <div id="touch" class="hidden">
+    <div id="touch-easy">
+      <div class="tc left">
+        <div class="row"><button class="tb skill" id="tb-skill" data-key="KeyL">스킬</button><button class="tb ev" data-key="EASY_EVADE">회피</button></div>
+        <div class="row"><button class="tb hold xl" data-key="Space">가드</button><button class="tb hold body" data-key="EASY_BODY">바디</button></div>
+      </div>
+      <div class="tc right">
+        <div class="row"><button class="tb punch" data-key="KeyJ">잽</button><button class="tb punch" data-key="KeyK">스트</button></div>
+        <div class="row"><button class="tb punch" data-key="HOOK">훅</button><button class="tb punch upper" data-key="KeyO">어퍼</button></div>
+      </div>
+      <div class="tc-hint">바디 누른 채 펀치 = 바디샷 · 상대 펀치 직전 가드 = 패리 · 거리는 자동</div>
+    </div>
+    <div id="touch-pro">
+      <div class="tc left">
+        <div class="row"><button class="tb skill" data-key="KeyL">스킬</button><button class="tb hold" data-key="Space">가드</button><button class="tb hold" data-key="KeyS">더킹</button></div>
+        <div class="row"><button class="tb move" data-key="KeyA">◀</button><button class="tb move" data-key="KeyD">▶</button></div>
+      </div>
+      <div class="tc right">
+        <div class="row"><button class="tb ev" data-key="KeyQ">슬립</button><button class="tb punch" data-key="KeyJ">잽</button><button class="tb punch" data-key="KeyK">스트</button></div>
+        <div class="row"><button class="tb punch" data-key="HOOK">훅</button><button class="tb punch upper" data-key="KeyO">어퍼</button></div>
+      </div>
+      <div class="tc-hint">더킹 누른 채 펀치 = 바디샷 · 넉다운 시 펀치 연타</div>
+    </div>
+  </div>
+  <button id="btn-pause" class="hidden" title="일시정지 / 나가기">⏸</button>
+
+  <!-- 타이틀 -->
+  <div id="overlay-title" class="overlay">
+    <div class="panel title">
+      <div class="logo">PUNCH<span>FACE</span></div>
+      <div class="tagline">맞으면 얼굴이 말해준다 — 표정이 살아있는 2D 권투</div>
+      <div class="modes">
+        <button id="btn-career" class="mode gold"><b>🏆 챔피언 로드</b><small>랭킹 도전 · 강화 · 히스토리</small></button>
+        <button id="btn-cpu" class="mode"><b>CPU 대전</b><small>내 선수 선택 · 상대는 랜덤</small></button>
+        <button id="btn-2p" class="mode"><b>2인 대전</b><small>다른 PC·휴대폰과 온라인</small></button>
+        <button id="btn-demo" class="mode dark"><b>CPU 관전</b><small>AI끼리 스파링</small></button>
+      </div>
+      <div class="settings">
+        <label><span>난이도</span><select data-set="difficulty"><option value="0" selected>쉬움</option><option value="1">보통</option><option value="2">어려움</option></select></label>
+        <label><span>라운드</span><select data-set="rounds"><option>1</option><option>2</option><option selected>3</option><option>5</option><option>6</option></select></label>
+        <label><span>라운드 시간</span><select data-set="roundTime"><option value="60">60초</option><option value="90" selected>90초</option><option value="120">120초</option></select></label>
+        <label><span>조작</span><select data-set="easy" id="sel-easy"><option value="1" selected>쉬움 (거리 자동)</option><option value="0">정밀 (전체 조작)</option></select></label>
+        <label class="chk"><input type="checkbox" data-set="sound" checked> 사운드</label>
+        <label class="chk"><input type="checkbox" data-set="voice" checked> 레퍼리 음성</label>
+        <label class="chk"><input type="checkbox" data-set="buttons" checked> 화면 버튼</label>
+        <label class="chk"><input type="checkbox" data-set="touch" id="chk-touch"> 터치 기기</label>
+      </div>
+      <details class="help">
+        <summary>조작법 · 콤보 · 스킬 보기</summary>
+        <div class="help-grid">
+          <div><h4>쉬움 (기본)</h4><p>거리는 자동. <b>J</b> 잽 · <b>K</b> 스트레이트 · <b>U / I</b> 훅 · <b>O</b> 어퍼컷 · <b>S</b>+펀치 바디샷 · <b>Space</b> 가드 · <b>Q</b> 회피 · <b>L</b> 스킬</p><p class="touch-only">화면 버튼: 잽·스트·훅·어퍼 / 바디(누른 채 펀치) / 가드(홀드) / 회피 / 스킬</p></div>
+          <div><h4>정밀</h4><p><b>A / D</b> 이동 · <b>S</b> 더킹 · <b>S + Space</b> 로우 가드 · 나머지는 쉬움과 동일</p><p class="kbd-only">P2: ←/→ 이동 · ↓ 더킹 · Num0 가드 · Num3 슬립 · Num8 스킬 · Num1/2/4/5/7 잽/스트/L훅/R훅/어퍼</p></div>
+          <div><h4>콤보</h4><p>잽·잽·스트 = <b>원투</b> · 잽·스트·L훅 = <b>1-2-3</b> · 바디·바디·어퍼 = <b>바디 어퍼</b> · 스트·어퍼 = <b>크로스 어퍼</b> · L훅·R훅 = <b>더블 훅</b></p></div>
+          <div><h4>방어</h4><p>가드는 머리만 막고 바디는 뚫림 · 더킹은 어퍼컷에 약함 · 상대 펀치가 닿기 <b>직전</b>에 가드 = <b>패리</b> · 넉다운 시 펀치 연타로 기상 · <b>ESC</b> 일시정지</p></div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- 선수 선택 -->
+  <div id="overlay-select" class="overlay hidden">
+    <div class="panel select">
+      <div class="sel-head">
+        <span id="sel-mode" class="tag">CPU 대전</span>
+        <h2 id="sel-title">선수를 고르세요</h2>
+        <div id="sel-tabs" class="sel-tabs hidden"><button class="tab active" data-p="0">P1 선수</button><button class="tab" data-p="1">P2 선수</button></div>
+        <div class="sel-btns"><button id="btn-random">랜덤</button><button id="btn-back">뒤로</button><button id="btn-fight" class="primary">경기 시작!</button></div>
+      </div>
+      <div class="sel-body">
+        <div id="roster"></div>
+        <div class="details"><div id="detail0" class="detail"></div><div id="detail1" class="detail"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 온라인 대전 -->
+  <div id="overlay-online" class="overlay hidden">
+    <div class="panel online">
+      <h2>2인 대전 — 온라인</h2>
+      <p class="dim">다른 PC나 휴대폰과 대결합니다. 두 기기 모두 인터넷이 연결되어 있어야 합니다.</p>
+      <div class="on-grid">
+        <div class="on-box"><h3>방 만들기</h3><p class="dim">코드를 만들어 친구에게 알려주세요</p>
+          <button id="btn-host" class="primary big">방 만들기</button>
+          <div id="on-code" class="on-code hidden"><span id="on-code-text">----</span><button id="btn-copy">복사</button></div></div>
+        <div class="on-box"><h3>참가하기</h3><p class="dim">친구에게 받은 코드 4자리</p>
+          <div class="on-join"><input id="on-input" maxlength="4" placeholder="ABCD" autocapitalize="characters" autocomplete="off"><button id="btn-join" class="primary big">참가</button></div></div>
+      </div>
+      <div id="on-status" class="on-status"></div>
+      <div class="btns"><button id="btn-local2p">같은 키보드로 (로컬 2P)</button><button id="btn-online-back">뒤로</button></div>
+    </div>
+  </div>
+
+  <!-- VS 인트로 -->
+  <div id="overlay-vs" class="overlay hidden vs">
+    <div class="vs-side red"><img id="vs-img0" alt=""><div class="vs-name" id="vs-name0"></div></div>
+    <div class="vs-mark">VS<div id="vs-sub" class="vs-sub"></div></div>
+    <div class="vs-side blue"><img id="vs-img1" alt=""><div class="vs-name" id="vs-name1"></div></div>
+  </div>
+
+  <!-- 일시정지 -->
+  <div id="overlay-pause" class="overlay hidden">
+    <div class="panel pause">
+      <h2>일시정지</h2>
+      <div class="btns"><button id="btn-resume" class="primary big">계속하기</button><button id="btn-restart">다시 시작</button><button id="btn-exit" class="danger">나가기</button></div>
+      <div class="dim">ESC / P 키로도 일시정지</div>
+    </div>
+  </div>
+
+  <!-- 결과 -->
+  <div id="overlay-result" class="overlay hidden">
+    <div class="panel result">
+      <img id="res-img" class="res-img" alt="">
+      <h1 id="res-title">승리!</h1>
+      <div id="res-sub" class="sub"></div>
+      <div id="res-career-msg" class="res-career"></div>
+      <table id="res-table"></table>
+      <div id="res-extra" class="dim small"></div>
+      <div class="btns"><button id="btn-res-career" class="primary hidden">커리어로 돌아가기</button><button id="btn-rematch" class="primary">재대결</button><button id="btn-reselect">선수 다시 선택</button><button id="btn-title">타이틀</button></div>
+    </div>
+  </div>
+
+  <!-- 커리어 -->
+  <div id="overlay-career" class="overlay hidden">
+    <div class="panel career">
+      <div class="c-head">
+        <img id="c-img" alt="">
+        <div class="c-info"><h2 id="c-name"></h2><div id="c-rec" class="dim"></div><div id="c-msg" class="c-msg"></div></div>
+        <div class="c-btns"><button id="btn-c-fight" class="primary big">다음 경기</button><span id="c-diff" class="dim"></span><button id="btn-c-reset">선수 변경</button><button id="btn-c-title">타이틀</button></div>
+      </div>
+      <div class="c-body">
+        <div class="c-col"><h3>세계 랭킹</h3><ol id="c-rank"></ol></div>
+        <div class="c-col"><h3>능력치 강화 <span id="c-pts" class="tag"></span></h3><div id="c-upg"></div><h3>고유 스킬</h3><div id="c-skill"></div></div>
+        <div class="c-col"><h3>전적 히스토리</h3><ul id="c-hist"></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rotate-hint"><div>📱 → 📱 가로로 돌려주세요</div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/fighter.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/career.js"></script>
+<script src="js/net.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/game.js"></script>
+<script>if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});</script>
+</body>
+</html>
