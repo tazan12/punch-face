@@ -265,3 +265,15 @@ button.mode.gold { animation: modeIn .5s .1s both, glow 1.6s .8s infinite altern
 .on-status { min-height: 20px; color: #a3e635; font-weight: 700; margin-bottom: 10px; }
 .on-status.err { color: #f87171; }
 @media (max-height: 520px) { .panel.online { width: 100%; max-width: 640px; } .on-grid { gap: 8px; margin-bottom: 6px; } .on-box { padding: 8px; gap: 4px; } .on-code span { font-size: 28px; } }
+
+/* ───── 설치 · 공유 ───── */
+.install-row { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+button.install { background: #0e7490; border-color: #22d3ee; font-size: 14px; padding: 8px 16px; }
+button.install:hover { background: #0891b2; }
+button.install.ghost { background: transparent; border-color: var(--line); color: var(--soft); }
+.panel.share { width: 420px; text-align: center; }
+.panel.share h2 { font-size: 20px; margin-bottom: 12px; }
+.panel.share .qr { width: 220px; height: 220px; border-radius: 12px; background: #fff; padding: 8px; }
+.share-url { font-family: monospace; font-size: 14px; color: var(--gold); margin: 10px 0 6px; word-break: break-all; }
+.panel.share .small { margin-bottom: 14px; }
+@media (max-height: 520px) { .panel.share .qr { width: 150px; height: 150px; } .install-row { margin-bottom: 6px; } button.install { font-size: 12px; padding: 5px 10px; } }
